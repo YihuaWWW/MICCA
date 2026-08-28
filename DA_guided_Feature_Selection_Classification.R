@@ -1,73 +1,134 @@
-setwd("G:/博士学习/AAA/cy/AD/data")
-
-s2_data1 <- read.csv("./2/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-s17_data1 <- read.csv("./17/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-s19_data1 <- read.csv("./19/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-s47_data1 <- read.csv("./47/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-s71_data1 <- read.csv("./71/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-s74_data1 <- read.csv("./74/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-s75_data1 <- read.csv("./75/results/diff/perm_genus_LS&HC.csv", row.names = 1)
-
-s2_data2 <- read.csv("./2/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-s17_data2 <- read.csv("./17/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-s19_data2 <- read.csv("./19/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-s47_data2 <- read.csv("./47/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-s71_data2 <- read.csv("./71/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-s74_data2 <- read.csv("./74/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-s75_data2 <- read.csv("./75/results/diff/wilcox_genus_LS&HC.csv", row.names = 1)
-
-s2_data3 <- read.csv("./2/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-s17_data3 <- read.csv("./17/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-s19_data3 <- read.csv("./19/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-s47_data3 <- read.csv("./47/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-s71_data3 <- read.csv("./71/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-s74_data3 <- read.csv("./74/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-#s75_data3 <- read.csv("./75/results/diff/lefse_genus_ADLS&HC.csv", row.names = 1)
-
-s2_data <-  Reduce(intersect,list(s2_data1$genus,s2_data2$genus,s2_data3$genus ))
-s17_data <- Reduce(intersect,list(s17_data1$genus,s17_data2$genus,s17_data3$genus ))
-s19_data <- Reduce(intersect,list(s19_data1$genus,s19_data2$genus,s19_data3$genus ))
-s47_data <- Reduce(intersect,list(s47_data1$genus,s47_data2$genus,s47_data3$genus ))
-s71_data <- Reduce(intersect,list(s71_data1$genus,s71_data2$genus,s71_data3$genus ))
-s74_data <- Reduce(intersect,list(s74_data1$genus,s74_data2$genus,s74_data3$genus ))
-s75_data <- Reduce(intersect,list(s75_data1$genus,s75_data2$genus ))
-
-# 将5个向量取并集
-fulljoin <- Reduce(union, list(s2_data, s17_data, s19_data, s47_data, s71_data, s75_data))
-
-
-#######随机森林预测####
-
-##### 分类 #########
-
-setwd("G:/博士学习/AAA/cy/AD/data")
-
-############################################################
-### 加载包
-############################################################
-
-library(randomForest)
-library(caret)
-library(pROC)
-library(dplyr)
+```r
+# ============================================================
+# Random Forest Classification with Independent Cohort Validation
+# ============================================================
+#
+# Description:
+# This script performs:
+#
+# 1. Identification of robust differential genera across cohorts
+# 2. Feature selection based on the intersection of:
+#      - Permutation test
+#      - Wilcoxon rank-sum test
+#      - LEfSe
+# 3. Study-stratified 5-fold cross-validation
+# 4. Recursive Feature Elimination (RFE)
+# 5. Random Forest classification
+# 6. Independent validation in a held-out cohort
+# 7. Evaluation of classification performance using:
+#      - Accuracy
+#      - Sensitivity
+#      - Specificity
+#      - Precision
+#      - F1-score
+#      - Balanced Accuracy
+#      - AUC
+# 8. Saving fold assignments and validation results
+#
+# Comparison:
+#   ADLS vs HC
+#
+# Training cohorts:
+#   S2, S17, S19, S47, S71, S75
+#
+# Independent validation cohort:
+#   S74
+#
+# ============================================================
 
 
-############################################################
-### 1. 读取 metadata
-############################################################
+# ============================================================
+# 0. Configuration
+# ============================================================
 
-meta.all <- read.csv(
-  file = "all/group.csv",
-  stringsAsFactors = FALSE,
-  header = TRUE,
-  row.names = 1,
-  check.names = FALSE
+# ------------------------------------------------------------
+# Project directory
+# ------------------------------------------------------------
+# IMPORTANT:
+# Run this script from the root directory of the GitHub project.
+#
+# Example project structure:
+#
+# project/
+# ├── data/
+# │   ├── all/
+# │   │   ├── group.csv
+# │   │   └── revised_results/
+# │   │       └── genus_NPC_ra_abd_adj.csv
+# │   │
+# │   ├── 2/
+# │   │   └── results/diff/
+# │   ├── 17/
+# │   │   └── results/diff/
+# │   ├── 19/
+# │   │   └── results/diff/
+# │   ├── 47/
+# │   │   └── results/diff/
+# │   ├── 71/
+# │   │   └── results/diff/
+# │   ├── 74/
+# │   │   └── results/diff/
+# │   └── 75/
+# │       └── results/diff/
+# │
+# └── scripts/
+#     └── random_forest_independent_validation.R
+#
+# If the script is stored in "scripts/", the project root can be
+# specified as the parent directory of the current working directory.
+#
+# For maximum portability, users can also simply run the script
+# after setting the project root manually.
+#
+# ------------------------------------------------------------
+
+project_dir <- normalizePath(
+  "..",
+  winslash = "/",
+  mustWork = FALSE
 )
 
+# If running this script directly from the project root,
+# replace the previous line with:
+#
+# project_dir <- "."
+#
+# Alternatively, users can specify an absolute path:
+#
+# project_dir <- "/path/to/your/project"
 
-############################################################
-### 2. 明确训练队列和独立验证队列
-############################################################
+
+# ============================================================
+# 1. Install and load required packages
+# ============================================================
+
+required_packages <- c(
+  "randomForest",
+  "caret",
+  "pROC",
+  "dplyr"
+)
+
+for (pkg in required_packages) {
+  
+  if (!requireNamespace(pkg, quietly = TRUE)) {
+    install.packages(pkg)
+  }
+  
+  library(
+    pkg,
+    character.only = TRUE
+  )
+}
+
+
+# ============================================================
+# 2. Analysis parameters
+# ============================================================
+
+# ------------------------------------------------------------
+# Training cohorts
+# ------------------------------------------------------------
 
 train_projects <- c(
   "S2",
@@ -78,10 +139,377 @@ train_projects <- c(
   "S75"
 )
 
+
+# ------------------------------------------------------------
+# Independent validation cohort
+# ------------------------------------------------------------
+
 validation_project <- "S74"
 
 
-# 如果后面需要按照 Project 排序
+# ------------------------------------------------------------
+# Disease groups
+# ------------------------------------------------------------
+
+case_group <- "ADLS"
+control_group <- "HC"
+
+group_levels <- c(
+  case_group,
+  control_group
+)
+
+
+# ------------------------------------------------------------
+# Number of CV folds
+# ------------------------------------------------------------
+
+K <- 5
+
+
+# ------------------------------------------------------------
+# Random seeds
+# ------------------------------------------------------------
+
+seed_cv <- 42
+seed_model <- 12
+
+
+# ============================================================
+# 3. Define input and output paths
+# ============================================================
+
+# ------------------------------------------------------------
+# Input files
+# ------------------------------------------------------------
+
+metadata_file <- file.path(
+  project_dir,
+  "data",
+  "all",
+  "group.csv"
+)
+
+
+genus_file <- file.path(
+  project_dir,
+  "data",
+  "all",
+  "revised_results",
+  "genus_NPC_ra_abd_adj.csv"
+)
+
+
+# ------------------------------------------------------------
+# Differential genus result directories
+# ------------------------------------------------------------
+
+diff_dir <- function(project) {
+  
+  file.path(
+    project_dir,
+    "data",
+    project,
+    "results",
+    "diff"
+  )
+}
+
+
+# ------------------------------------------------------------
+# Output directory
+# ------------------------------------------------------------
+
+output_dir <- file.path(
+  project_dir,
+  "data",
+  "all",
+  "revised_results"
+)
+
+
+if (!dir.exists(output_dir)) {
+  
+  dir.create(
+    output_dir,
+    recursive = TRUE
+  )
+}
+
+
+# ============================================================
+# 4. Identify robust differential genera
+# ============================================================
+#
+# For each training cohort, three differential-abundance
+# approaches are considered:
+#
+#   1. Permutation test
+#   2. Wilcoxon rank-sum test
+#   3. LEfSe
+#
+# A genus is considered robust within a cohort if it is
+# identified by all available methods.
+#
+# The final feature set is obtained by taking the union of
+# cohort-specific robust genera.
+#
+# ============================================================
+
+
+# ------------------------------------------------------------
+# Function to read differential genus results
+# ------------------------------------------------------------
+
+read_diff_results <- function(
+    project,
+    comparison = "ADLS&HC"
+) {
+  
+  current_dir <- diff_dir(project)
+  
+  
+  permutation_file <- file.path(
+    current_dir,
+    "perm_genus_LS&HC.csv"
+  )
+  
+  
+  wilcoxon_file <- file.path(
+    current_dir,
+    "wilcox_genus_LS&HC.csv"
+  )
+  
+  
+  lefse_file <- file.path(
+    current_dir,
+    paste0(
+      "lefse_genus_",
+      comparison,
+      ".csv"
+    )
+  )
+  
+  
+  result <- list()
+  
+  
+  # ----------------------------------------------------------
+  # Permutation test
+  # ----------------------------------------------------------
+  
+  if (file.exists(permutation_file)) {
+    
+    result$permutation <- read.csv(
+      permutation_file,
+      row.names = 1,
+      check.names = FALSE
+    )
+    
+  } else {
+    
+    warning(
+      "Permutation result not found: ",
+      permutation_file
+    )
+    
+  }
+  
+  
+  # ----------------------------------------------------------
+  # Wilcoxon test
+  # ----------------------------------------------------------
+  
+  if (file.exists(wilcoxon_file)) {
+    
+    result$wilcoxon <- read.csv(
+      wilcoxon_file,
+      row.names = 1,
+      check.names = FALSE
+    )
+    
+  } else {
+    
+    warning(
+      "Wilcoxon result not found: ",
+      wilcoxon_file
+    )
+    
+  }
+  
+  
+  # ----------------------------------------------------------
+  # LEfSe
+  # ----------------------------------------------------------
+  
+  if (file.exists(lefse_file)) {
+    
+    result$lefse <- read.csv(
+      lefse_file,
+      row.names = 1,
+      check.names = FALSE
+    )
+    
+  } else {
+    
+    warning(
+      "LEfSe result not found: ",
+      lefse_file
+    )
+    
+  }
+  
+  
+  return(result)
+}
+
+
+# ------------------------------------------------------------
+# Find robust genera for each training cohort
+# ------------------------------------------------------------
+
+cohort_features <- list()
+
+
+for (project in train_projects) {
+  
+  cat(
+    "\n============================================\n"
+  )
+  
+  cat(
+    "Processing cohort:",
+    project,
+    "\n"
+  )
+  
+  cat(
+    "============================================\n"
+  )
+  
+  
+  diff_results <- read_diff_results(
+    project = project,
+    comparison = "ADLS&HC"
+  )
+  
+  
+  genus_vectors <- list()
+  
+  
+  if (!is.null(diff_results$permutation)) {
+    
+    genus_vectors$permutation <-
+      diff_results$permutation$genus
+    
+  }
+  
+  
+  if (!is.null(diff_results$wilcoxon)) {
+    
+    genus_vectors$wilcoxon <-
+      diff_results$wilcoxon$genus
+    
+  }
+  
+  
+  if (!is.null(diff_results$lefse)) {
+    
+    genus_vectors$lefse <-
+      diff_results$lefse$genus
+    
+  }
+  
+  
+  # ----------------------------------------------------------
+  # If all three methods are available, take their
+  # intersection.
+  # ----------------------------------------------------------
+  
+  if (length(genus_vectors) >= 2) {
+    
+    robust_features <- Reduce(
+      intersect,
+      genus_vectors
+    )
+    
+  } else if (length(genus_vectors) == 1) {
+    
+    robust_features <- genus_vectors[[1]]
+    
+  } else {
+    
+    robust_features <- character(0)
+    
+  }
+  
+  
+  cohort_features[[project]] <- robust_features
+  
+  
+  cat(
+    "Number of robust genera:",
+    length(robust_features),
+    "\n"
+  )
+}
+
+
+# ------------------------------------------------------------
+# Combine cohort-specific robust genera
+# ------------------------------------------------------------
+
+fulljoin <- Reduce(
+  union,
+  cohort_features
+)
+
+
+cat(
+  "\n============================================\n"
+)
+
+cat(
+  "Total candidate genera:",
+  length(fulljoin),
+  "\n"
+)
+
+cat(
+  "============================================\n"
+)
+
+
+# Save candidate genera
+write.csv(
+  data.frame(
+    genus = fulljoin
+  ),
+  file = file.path(
+    output_dir,
+    "candidate_differential_genera.csv"
+  ),
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 5. Load metadata
+# ============================================================
+
+meta.all <- read.csv(
+  file = metadata_file,
+  stringsAsFactors = FALSE,
+  header = TRUE,
+  row.names = 1,
+  check.names = FALSE
+)
+
+
+# ------------------------------------------------------------
+# Define Project as factor
+# ------------------------------------------------------------
+
 project_order <- c(
   train_projects,
   validation_project
@@ -93,14 +521,18 @@ meta.all$Project <- factor(
   levels = c(
     project_order,
     setdiff(
-      unique(as.character(meta.all$Project)),
+      unique(
+        as.character(
+          meta.all$Project
+        )
+      ),
       project_order
     )
   )
 )
 
 
-# 根据 Project 排序
+# Sort metadata according to cohort
 meta.all <- meta.all[
   order(meta.all$Project),
   ,
@@ -108,12 +540,12 @@ meta.all <- meta.all[
 ]
 
 
-############################################################
-### 3. 读取 MMUPHin 批次校正后的丰度矩阵
-############################################################
+# ============================================================
+# 6. Load MMUPHin batch-adjusted genus abundance matrix
+# ============================================================
 
 genus <- read.csv(
-  file = "all/revised_results/genus_NPC_ra_abd_adj.csv",
+  file = genus_file,
   stringsAsFactors = FALSE,
   header = TRUE,
   row.names = 1,
@@ -121,7 +553,10 @@ genus <- read.csv(
 )
 
 
-# 只保留丰度矩阵中存在的样本
+# ------------------------------------------------------------
+# Keep samples available in the abundance matrix
+# ------------------------------------------------------------
+
 meta.all <- meta.all[
   rownames(meta.all) %in% colnames(genus),
   ,
@@ -129,39 +564,47 @@ meta.all <- meta.all[
 ]
 
 
-############################################################
-### 4. 只保留 ADLS 和 HC
-############################################################
+# ============================================================
+# 7. Select ADLS and HC samples
+# ============================================================
 
 meta.all2 <- meta.all %>%
-  filter(Group2 %in% c("ADLS", "HC"))
+  filter(
+    Group2 %in% group_levels
+  )
 
 
-############################################################
-### 5. 训练集与独立验证集完全分开
-############################################################
-
-# 训练集：
-# S2、S17、S19、S47、S71、S75
+# ============================================================
+# 8. Separate training and independent validation cohorts
+# ============================================================
 
 meta.train <- meta.all2 %>%
-  filter(Project_rawID %in% train_projects)
+  filter(
+    Project_rawID %in% train_projects
+  )
 
-
-# 独立验证集：
-# S74
 
 meta.valid <- meta.all2 %>%
-  filter(Project_rawID == validation_project)
+  filter(
+    Project_rawID == validation_project
+  )
 
 
-############################################################
-### 检查训练集和验证集
-############################################################
+# ============================================================
+# 9. Check training and validation cohorts
+# ============================================================
 
-cat("\n==============================\n")
-cat("训练集样本分布：\n")
-cat("==============================\n")
+cat(
+  "\n==============================\n"
+)
+
+cat(
+  "Training cohort distribution:\n"
+)
+
+cat(
+  "==============================\n"
+)
 
 print(
   table(
@@ -171,9 +614,17 @@ print(
 )
 
 
-cat("\n==============================\n")
-cat("独立验证集样本分布：\n")
-cat("==============================\n")
+cat(
+  "\n==============================\n"
+)
+
+cat(
+  "Independent validation cohort:\n"
+)
+
+cat(
+  "==============================\n"
+)
 
 print(
   table(
@@ -183,40 +634,41 @@ print(
 )
 
 
-############################################################
-### 检查训练集和验证集是否存在重复样本
-############################################################
+# ============================================================
+# 10. Check sample independence
+# ============================================================
 
 overlap_samples <- intersect(
   rownames(meta.train),
   rownames(meta.valid)
 )
 
+
 if (length(overlap_samples) > 0) {
   
   stop(
-    "训练集和独立验证集存在重复样本，请检查！"
+    "Training and validation cohorts contain overlapping samples."
   )
   
 } else {
   
   cat(
-    "\n训练集与独立验证集完全独立，无重复样本。\n"
+    "\nTraining and independent validation sets contain no overlapping samples.\n"
   )
+  
 }
 
 
-############################################################
-### 6. 提取训练集和验证集丰度矩阵
-############################################################
-
-# 必须严格按照 metadata 的样本顺序排列
+# ============================================================
+# 11. Extract training and validation abundance matrices
+# ============================================================
 
 genus_train <- genus[
   ,
   rownames(meta.train),
   drop = FALSE
 ]
+
 
 genus_valid <- genus[
   ,
@@ -225,16 +677,14 @@ genus_valid <- genus[
 ]
 
 
-############################################################
-### 再次检查样本顺序
-############################################################
-
+# Check sample order
 stopifnot(
   identical(
     colnames(genus_train),
     rownames(meta.train)
   )
 )
+
 
 stopifnot(
   identical(
@@ -244,32 +694,20 @@ stopifnot(
 )
 
 
-############################################################
-### 7. 读取训练集筛选得到的差异菌
-############################################################
+# ============================================================
+# 12. Filter candidate genera according to abundance matrix
+# ============================================================
 
-# diff_genus <- read.csv(
-#   file = "all/revised_results/lm_meta_0.05_ADLS&HC_S9validation.csv",
-#   stringsAsFactors = FALSE,
-#   header = TRUE,
-#   row.names = 1,
-#   check.names = FALSE
-# )
+diff_features <- fulljoin
 
 
-# diff_features <- unique(
-#   diff_genus$feature
-# )
-diff_features<-fulljoin
-
-# 只保留丰度矩阵中真正存在的菌
 diff_features <- diff_features[
   diff_features %in% rownames(genus)
 ]
 
 
 cat(
-  "\n用于建模的差异菌数量：",
+  "\nNumber of candidate genera available in the abundance matrix:",
   length(diff_features),
   "\n"
 )
@@ -278,15 +716,15 @@ cat(
 if (length(diff_features) == 0) {
   
   stop(
-    "没有差异菌能够在 genus 丰度矩阵中找到，",
-    "请检查 diff_genus$feature。"
+    "No candidate genera were found in the abundance matrix."
   )
+  
 }
 
 
-############################################################
-### 8. 提取训练集和验证集相同的差异菌
-############################################################
+# ============================================================
+# 13. Extract common features from training and validation sets
+# ============================================================
 
 abun_diff_train <- genus_train[
   rownames(genus_train) %in% diff_features,
@@ -301,10 +739,6 @@ abun_diff_valid <- genus_valid[
   drop = FALSE
 ]
 
-
-############################################################
-### 保证训练集和验证集特征完全相同、顺序完全一致
-############################################################
 
 common_features <- intersect(
   rownames(abun_diff_train),
@@ -334,48 +768,61 @@ stopifnot(
 )
 
 
-############################################################
-### 9. 构建 metadata
-############################################################
+cat(
+  "Number of common genera used for modeling:",
+  length(common_features),
+  "\n"
+)
+
+
+# ============================================================
+# 14. Construct training and validation metadata
+# ============================================================
 
 meta_train <- data.frame(
+  
   SampleID = rownames(meta.train),
+  
   Group = meta.train$Group2,
+  
   Project = meta.train$Project_rawID,
+  
   row.names = rownames(meta.train),
+  
   check.names = FALSE
 )
 
 
 meta_valid <- data.frame(
+  
   SampleID = rownames(meta.valid),
+  
   Group = meta.valid$Group2,
+  
   Project = meta.valid$Project_rawID,
+  
   row.names = rownames(meta.valid),
+  
   check.names = FALSE
 )
 
 
-############################################################
-### 10. 构建训练数据和独立验证数据
-############################################################
+# ============================================================
+# 15. Construct modeling datasets
+# ============================================================
 
-# 转置：
-# 行 = 样本
-# 列 = 菌
+# Rows = samples
+# Columns = genera
 
 abun_diff_train_transposed <- t(
   abun_diff_train
 )
 
+
 abun_diff_valid_transposed <- t(
   abun_diff_valid
 )
 
-
-############################################################
-### 合并 metadata 与丰度
-############################################################
 
 train_data <- cbind(
   meta_train,
@@ -389,40 +836,37 @@ test_data <- cbind(
 )
 
 
-############################################################
-### 设定 Group 因子
-### ADLS 为阳性类别
-############################################################
+# ------------------------------------------------------------
+# Define outcome variable
+# ------------------------------------------------------------
 
 train_data$Group <- factor(
   train_data$Group,
-  levels = c("ADLS", "HC")
+  levels = group_levels
 )
 
 
 test_data$Group <- factor(
   test_data$Group,
-  levels = c("ADLS", "HC")
+  levels = group_levels
 )
 
 
-############################################################
-### Project 保留为字符，不能进入模型
-############################################################
+# ------------------------------------------------------------
+# Keep Project as character
+# ------------------------------------------------------------
 
 train_data$Project <- as.character(
   train_data$Project
 )
+
 
 test_data$Project <- as.character(
   test_data$Project
 )
 
 
-############################################################
-### 检查 train_data 与 meta.train 行顺序
-############################################################
-
+# Check row order
 stopifnot(
   identical(
     rownames(train_data),
@@ -431,44 +875,28 @@ stopifnot(
 )
 
 
-############################################################
-############################################################
-### 11. 每个队列内部先做5折，再把相同编号的小fold合并
-############################################################
-############################################################
+# ============================================================
+# 16. Study-stratified 5-fold cross-validation
+# ============================================================
 
-set.seed(42)
+set.seed(seed_cv)
 
-K <- 5
-
-
-############################################################
-### 保存最终5个 validation folds
-###
-### fold_test[[1]] =
-###     S2的Fold1 +
-###     S17的Fold1 +
-###     S19的Fold1 +
-###     S47的Fold1 +
-###     S71的Fold1 +
-###     S75的Fold1
-###
-### 依此类推
-############################################################
 
 fold_test <- vector(
   mode = "list",
   length = K
 )
 
+
 names(fold_test) <- paste0(
   "Fold",
-  1:K
+  seq_len(K)
 )
 
-############################################################
-### 对每一个训练队列分别进行5折划分
-############################################################
+
+# ------------------------------------------------------------
+# Perform stratified CV separately within each study
+# ------------------------------------------------------------
 
 for (study in train_projects) {
   
@@ -477,20 +905,15 @@ for (study in train_projects) {
   )
   
   cat(
-    "正在对队列 ",
+    "Generating 5-fold CV for cohort:",
     study,
-    " 内部进行5折划分\n",
-    sep = ""
+    "\n"
   )
   
   cat(
     "------------------------------------\n"
   )
   
-  
-  ##########################################################
-  ### 找到该队列在 train_data 中的行号
-  ##########################################################
   
   study_idx <- which(
     train_data$Project == study
@@ -500,56 +923,38 @@ for (study in train_projects) {
   if (length(study_idx) == 0) {
     
     warning(
-      paste0(
-        "训练集中没有找到队列 ",
-        study,
-        "，已跳过。"
-      )
+      "No samples found for cohort ",
+      study,
+      ". Skipping."
     )
     
     next
   }
   
   
-  ##########################################################
-  ### 该队列疾病分组
-  ##########################################################
-  
   study_group <- train_data$Group[
     study_idx
   ]
   
-  
-  ##########################################################
-  ### 打印该队列 ADLS / HC 数量
-  ##########################################################
   
   print(
     table(study_group)
   )
   
   
-  ##########################################################
-  ### 检查是否至少有5个样本
-  ##########################################################
-  
   if (length(study_idx) < K) {
     
     stop(
       paste0(
-        "队列 ",
+        "Cohort ",
         study,
-        " 总样本数少于5，无法进行5折交叉验证。"
+        " contains fewer than ",
+        K,
+        " samples."
       )
     )
   }
   
-  
-  ##########################################################
-  ### 如果某一组少于5个样本：
-  ### createFolds仍可能运行，
-  ### 但无法保证5个fold中都有该类别
-  ##########################################################
   
   class_counts <- table(
     study_group
@@ -560,20 +965,16 @@ for (study in train_projects) {
     
     warning(
       paste0(
-        "队列 ",
+        "At least one class in cohort ",
         study,
-        " 中至少一个疾病类别样本数少于5。",
-        "因此无法保证该队列的每一个fold中",
-        "都同时存在ADLS和HC。"
+        " contains fewer than ",
+        K,
+        " samples. ",
+        "Each fold may not contain both classes."
       )
     )
   }
   
-  
-  ##########################################################
-  ### 在该队列内部：
-  ### 根据 ADLS / HC 进行分层5折
-  ##########################################################
   
   study_folds <- createFolds(
     y = study_group,
@@ -583,16 +984,10 @@ for (study in train_projects) {
   )
   
   
-  ##########################################################
-  ### 把队列内部的局部行号
-  ### 转换成整个 train_data 的全局行号
-  ###
-  ### 然后把相同编号的小fold合并
-  ##########################################################
-  
   for (k in seq_len(K)) {
     
     local_test_idx <- study_folds[[k]]
+    
     
     global_test_idx <- study_idx[
       local_test_idx
@@ -607,22 +1002,16 @@ for (study in train_projects) {
 }
 
 
-############################################################
-### 对每个fold排序
-############################################################
-
+# Sort fold indices
 fold_test <- lapply(
   fold_test,
   sort
 )
 
 
-############################################################
-### 生成对应 training indices
-###
-### caret 的 index = 每一折用于训练的样本
-### indexOut = 每一折用于验证的样本
-############################################################
+# ------------------------------------------------------------
+# Generate training indices
+# ------------------------------------------------------------
 
 all_train_rows <- seq_len(
   nrow(train_data)
@@ -646,18 +1035,16 @@ names(fold_train) <- names(
 )
 
 
-############################################################
-############################################################
-### 12. 检查五折划分结果
-############################################################
-############################################################
+# ============================================================
+# 17. Check CV fold assignment
+# ============================================================
 
 cat(
-  "\n\n============================================\n"
+  "\n============================================\n"
 )
 
 cat(
-  "Study-stratified 5-fold CV 分布检查\n"
+  "Study-stratified 5-fold CV distribution\n"
 )
 
 cat(
@@ -670,12 +1057,13 @@ for (k in seq_len(K)) {
   cat(
     "\n========== ",
     names(fold_test)[k],
-    "：Validation ==========\n",
+    ": Validation ==========\n",
     sep = ""
   )
   
   
   fold_info <- data.frame(
+    
     SampleID = rownames(train_data)[
       fold_test[[k]]
     ],
@@ -687,6 +1075,7 @@ for (k in seq_len(K)) {
     Group = train_data$Group[
       fold_test[[k]]
     ]
+    
   )
   
   
@@ -699,35 +1088,19 @@ for (k in seq_len(K)) {
   
   
   cat(
-    "\n该fold总样本数：",
+    "\nTotal samples:",
     nrow(fold_info),
     "\n"
   )
 }
 
 
-############################################################
-### 检查：
-### 所有样本是否恰好作为 validation 出现一次
-############################################################
+# ------------------------------------------------------------
+# Check whether every training sample appears exactly once
+# ------------------------------------------------------------
 
 all_validation_indices <- unlist(
   fold_test
-)
-
-
-cat(
-  "\n============================================\n"
-)
-
-cat(
-  "每个样本进入validation fold的次数：\n"
-)
-
-print(
-  table(
-    table(all_validation_indices)
-  )
 )
 
 
@@ -737,8 +1110,7 @@ if (
 ) {
   
   stop(
-    "五折validation样本总数与训练集总样本数不一致，",
-    "请检查fold划分。"
+    "The total number of validation assignments does not match the number of training samples."
   )
 }
 
@@ -749,733 +1121,19 @@ if (
 ) {
   
   stop(
-    "存在样本重复进入多个validation fold，",
-    "或存在样本未进入任何validation fold。"
+    "Some samples appear in multiple validation folds or are missing from validation."
   )
 }
 
 
 cat(
-  "\n检查通过：每个训练样本恰好进入一个validation fold。\n"
+  "\nCheck passed: every training sample appears in exactly one validation fold.\n"
 )
 
 
-############################################################
-### 进一步打印每个队列在各Fold中的样本数
-############################################################
-
-fold_project_distribution <- data.frame()
-
-
-for (k in seq_len(K)) {
-  
-  tmp <- as.data.frame(
-    table(
-      Project = train_data$Project[
-        fold_test[[k]]
-      ]
-    )
-  )
-  
-  
-  tmp$Fold <- paste0(
-    "Fold",
-    k
-  )
-  
-  
-  fold_project_distribution <- rbind(
-    fold_project_distribution,
-    tmp
-  )
-}
-
-
-cat(
-  "\n============================================\n"
-)
-
-cat(
-  "各队列在五个validation folds中的样本数：\n"
-)
-
-cat(
-  "============================================\n"
-)
-
-
-print(
-  fold_project_distribution
-)
-
-
-############################################################
-### 各Fold疾病类别比例
-############################################################
-
-cat(
-  "\n============================================\n"
-)
-
-cat(
-  "各validation fold的ADLS/HC分布：\n"
-)
-
-cat(
-  "============================================\n"
-)
-
-
-for (k in seq_len(K)) {
-  
-  cat(
-    "\nFold ",
-    k,
-    ":\n",
-    sep = ""
-  )
-  
-  print(
-    table(
-      train_data$Group[
-        fold_test[[k]]
-      ]
-    )
-  )
-}
-
-
-############################################################
-############################################################
-### 13. RFE
-###
-### 使用上面完全相同的 study-stratified folds
-############################################################
-############################################################
-
-rfe_control <- rfeControl(
-  functions = rfFuncs,
-  method = "cv",
-  number = K,
-  
-  # 关键：
-  # 自定义每一折的 training indices
-  index = fold_train,
-  
-  verbose = FALSE,
-  returnResamp = "final"
-)
-
-
-############################################################
-### 模型输入变量
-###
-### 注意：
-### SampleID、Group、Project
-### 均不能作为微生物特征进入模型
-############################################################
-
-feature_columns <- setdiff(
-  colnames(train_data),
-  c(
-    "SampleID",
-    "Group",
-    "Project"
-  )
-)
-
-
-cat(
-  "\n进入RFE的候选菌数量：",
-  length(feature_columns),
-  "\n"
-)
-
-
-############################################################
-### 如果特征很多，不建议 sizes = 1:n
-### 这里先保持与你原来的分析逻辑一致
-############################################################
-
-rfe_sizes <- seq_len(
-  length(feature_columns)
-)
-
-# rfe_sizes <- seq(
-#   from = 5,
-#   to = length(feature_columns),
-#   by = 5
-# )
-# 
-# rfe_sizes <- sort(
-#   unique(
-#     c(
-#       rfe_sizes,
-#       length(feature_columns)
-#     )
-#   )
-# )
-
-set.seed(42)
-
-
-rfe_result <- rfe(
-  
-  x = train_data[
-    ,
-    feature_columns,
-    drop = FALSE
-  ],
-  
-  y = train_data$Group,
-  
-  sizes = rfe_sizes,
-  
-  rfeControl = rfe_control
-)
-
-
-############################################################
-### 查看RFE结果
-############################################################
-
-print(
-  rfe_result
-)
-
-
-############################################################
-### 14. 使用RFE筛选的最佳特征
-############################################################
-
-best_features <- rfe_result$optVariables
-
-# 如果希望固定top10，可改为：
-# best_features <- rfe_result$optVariables[1:10]
-
-# 如果希望固定top20，可改为：
-# best_features <- rfe_result$optVariables[1:20]
-
-# 如果希望使用全部差异菌：
-# best_features <- colnames(train_data)[-c(1,2)]
-
-cat(
-  "\n============================================\n"
-)
-
-cat(
-  "RFE最终选择的菌数量：",
-  length(best_features),
-  "\n"
-)
-
-cat(
-  "============================================\n"
-)
-
-
-print(
-  best_features
-)
-
-
-############################################################
-### 检查最佳特征在训练集和验证集中均存在
-############################################################
-
-missing_train_features <- setdiff(
-  best_features,
-  colnames(train_data)
-)
-
-
-missing_test_features <- setdiff(
-  best_features,
-  colnames(test_data)
-)
-
-
-if (
-  length(missing_train_features) > 0
-) {
-  
-  stop(
-    "部分RFE特征不在训练集中。"
-  )
-}
-
-
-if (
-  length(missing_test_features) > 0
-) {
-  
-  stop(
-    paste0(
-      "部分RFE特征不在独立验证集中：",
-      paste(
-        missing_test_features,
-        collapse = ", "
-      )
-    )
-  )
-}
-
-
-############################################################
-############################################################
-### 15. 最终随机森林：
-###
-### 同样使用 study-stratified 5-fold CV
-############################################################
-############################################################
-
-train_control <- trainControl(
-  
-  method = "cv",
-  
-  number = K,
-  
-  # 每折训练样本
-  index = fold_train,
-  
-  # 每折验证样本
-  indexOut = fold_test,
-  
-  classProbs = TRUE,
-  
-  savePredictions = "final",
-  
-  summaryFunction = twoClassSummary,
-  
-  verboseIter = FALSE
-)
-
-
-############################################################
-### 使用全部训练数据建立最终随机森林模型
-###
-### CV用于：
-### 1. 超参数选择
-### 2. 内部性能评估
-###
-### 最终选定参数后，
-### caret会用全部训练数据重新拟合最终模型
-############################################################
-
-set.seed(12)
-
-
-rf_model <- train(
-  
-  x = train_data[
-    ,
-    best_features,
-    drop = FALSE
-  ],
-  
-  y = train_data$Group,
-  
-  method = "rf",
-  
-  trControl = train_control,
-  
-  tuneLength = 3,
-  
-  metric = "ROC",
-  
-  importance = TRUE
-)
-
-
-############################################################
-### 查看随机森林结果
-############################################################
-
-print(
-  rf_model
-)
-
-
-############################################################
-### 查看最佳 mtry
-############################################################
-
-cat(
-  "\n最佳随机森林参数：\n"
-)
-
-print(
-  rf_model$bestTune
-)
-
-
-############################################################
-### 16. 查看内部五折CV预测结果
-############################################################
-
-cv_predictions <- rf_model$pred
-
-
-cat(
-  "\n内部五折CV预测结果前几行：\n"
-)
-
-print(
-  head(cv_predictions)
-)
-
-
-############################################################
-### 如果存在多个mtry，
-### 只保留最终最佳mtry对应预测
-############################################################
-
-if (
-  "mtry" %in% colnames(cv_predictions)
-) {
-  
-  cv_predictions_best <- cv_predictions[
-    cv_predictions$mtry ==
-      rf_model$bestTune$mtry,
-    ,
-    drop = FALSE
-  ]
-  
-} else {
-  
-  cv_predictions_best <- cv_predictions
-}
-
-
-# ############################################################
-# ### 内部5-fold CV ROC
-# ###
-# ### ADLS是阳性类别，
-# ### 必须明确使用ADLS概率
-
-############################################################
-
-cv_roc <- roc(
-  response = cv_predictions_best$obs,
-  predictor = cv_predictions_best$ADLS,
-  levels = c("HC", "ADLS"),
-  direction = "<",
-  quiet = TRUE
-)
-
-
-############################################################
-### 内部5-fold CV AUC
-############################################################
-
-cv_auc <- auc(cv_roc)
-
-cat(
-  "\nStudy-stratified 5-fold CV AUC: ",
-  as.numeric(cv_auc),
-  "\n",
-  sep = ""
-)
-
-
-############################################################
-### 使用Youden index寻找最佳threshold
-###
-### 最大化：
-### Sensitivity + Specificity - 1
-############################################################
-
-best_threshold_info <- coords(
-  cv_roc,
-  x = "best",
-  best.method = "youden",
-  ret = c(
-    "threshold",
-    "sensitivity",
-    "specificity"
-  ),
-  transpose = FALSE
-)
-
-
-cat(
-  "\n============================================\n"
-)
-
-cat(
-  "Threshold selected from training CV\n"
-)
-
-cat(
-  "============================================\n"
-)
-
-print(best_threshold_info)
-
-
-############################################################
-### 提取最佳threshold
-############################################################
-
-best_threshold <- as.numeric(
-  best_threshold_info["threshold"]
-)
-
-
-cat(
-  "\nSelected threshold: ",
-  best_threshold,
-  "\n",
-  sep = ""
-)
-
-
-
-
-
-############################################################
-############################################################
-### 17. S74 独立验证
-############################################################
-############################################################
-
-test_predictions <- predict(
-  
-  rf_model,
-  
-  newdata = test_data[
-    ,
-    best_features,
-    drop = FALSE
-  ]
-)
-
-
-############################################################
-### S74独立验证预测概率
-############################################################
-
-test_probs <- predict(
-  rf_model,
-  newdata = test_data[
-    ,
-    best_features,
-    drop = FALSE
-  ],
-  type = "prob"
-)
-
-
-############################################################
-### 使用训练CV确定的threshold
-### 对S74进行分类
-############################################################
-
-test_predictions <- ifelse(
-  test_probs[, "ADLS"] >= best_threshold,
-  "ADLS",
-  "HC"
-)
-
-
-test_predictions <- factor(
-  test_predictions,
-  levels = c("ADLS", "HC")
-)
-
-
-############################################################
-### 混淆矩阵
-### ADLS作为阳性类别
-############################################################
-
-conf_matrix <- confusionMatrix(
-  
-  data = test_predictions,
-  
-  reference = test_data$Group,
-  
-  positive = "ADLS"
-)
-
-
-print(
-  conf_matrix
-)
-
-# confusionMatrix$table 转为 data.frame
-conf_matrix_df <- as.data.frame(
-  conf_matrix$table
-)
-
-# 重命名列，便于阅读
-colnames(conf_matrix_df) <- c(
-  "Prediction",
-  "Reference",
-  "Frequency"
-)
-
-#保存
-write.csv(
-  conf_matrix_df,
-  file = "all/revised_results/subgroup_S74_independent_validation_confusion_matrix.csv",
-  row.names = FALSE
-)
-
-# write.csv(
-#   conf_matrix_df,
-#   file = "all/revised_results/subgroup_S74_independent_validation_confusion_matrix_top10.csv",
-#   row.names = FALSE
-# )
-
-# write.csv(
-#   conf_matrix_df,
-#   file = "all/revised_results/S74_independent_validation_confusion_matrix_top20.csv",
-#   row.names = FALSE
-# )
-
-# write.csv(
-#   conf_matrix_df,
-#   file = "all/revised_results/subgroup_S74_independent_validation_confusion_matrix_all.csv",
-#   row.names = FALSE
-# )
-
-############################################################
-### 18. 独立验证集性能指标
-############################################################
-
-accuracy <- unname(
-  conf_matrix$overall["Accuracy"]
-)
-
-precision <- unname(
-  conf_matrix$byClass["Pos Pred Value"]
-)
-
-recall <- unname(
-  conf_matrix$byClass["Sensitivity"]
-)
-
-specificity <- unname(
-  conf_matrix$byClass["Specificity"]
-)
-
-balanced_accuracy <- unname(
-  conf_matrix$byClass["Balanced Accuracy"]
-)
-
-
-f1_score <- ifelse(
-  is.na(precision) |
-    is.na(recall) |
-    precision + recall == 0,
-  NA,
-  2 * precision * recall /
-    (precision + recall)
-)
-
-#获取独立验证集预测概率
-
-test_probs <- predict(
-  
-  rf_model,
-  
-  newdata = test_data[
-    ,
-    best_features,
-    drop = FALSE
-  ],
-  
-  type = "prob"
-)
-
-
-### 独立验证 ROC
-roc_curve <- roc(test_data$Group, test_probs[, 2])  # 假设 "Group2" 是阳性类别
-
-
-### 独立验证AUC
-auc_value <- auc(
-  roc_curve
-)
-
-
-###可选：输出95% CI
-auc_ci <- ci.auc(
-  roc_curve
-)
-
-
-performance_df <- data.frame(
-  Validation_Cohort = validation_project,
-  
-  Threshold = best_threshold,
-  
-  Accuracy = accuracy,
-  
-  Sensitivity = recall,
-  
-  Specificity = specificity,
-  
-  Precision = precision,
-  
-  F1_Score = f1_score,
-  
-  Balanced_Accuracy = balanced_accuracy,
-  
-  AUC = as.numeric(auc_value),
-  
-  stringsAsFactors = FALSE
-)
-
-
-write.csv(
-  performance_df,
-  file = paste0(
-    "all/revised_results/",
-    validation_project,
-    "_independent_validation_performance_subgroup.csv"
-  ),
-  row.names = FALSE
-)
-
-# write.csv(
-#   performance_df,
-#   file = paste0(
-#     "all/revised_results/",
-#     validation_project,
-#     "_independent_validation_performance_top10_subgroup.csv"
-#   ),
-#   row.names = FALSE
-# )
-
-# write.csv(
-#   performance_df,
-#   file = paste0(
-#     "all/revised_results/",
-#     validation_project,
-#     "_independent_validation_performance_all_subgroup.csv"
-#   ),
-#   row.names = FALSE
-# )
-
-# write.csv(
-#   performance_df,
-#   file = paste0(
-#     "all/revised_results/",
-#     validation_project,
-#     "_independent_validation_performance_all_top20_subgroup.csv"
-#   ),
-#   row.names = FALSE
-# )
-
-
-
-############################################################
-### 23. 可选：
-### 保存每个训练样本属于哪个validation fold
-### 方便论文补充材料和审稿回复
-############################################################
+# ============================================================
+# 18. Save fold assignment
+# ============================================================
 
 fold_assignment <- data.frame(
   
@@ -1502,10 +1160,6 @@ for (k in seq_len(K)) {
 }
 
 
-############################################################
-### 按 Project、Fold 排序查看
-############################################################
-
 fold_assignment <- fold_assignment %>%
   arrange(
     Project,
@@ -1514,34 +1168,830 @@ fold_assignment <- fold_assignment %>%
   )
 
 
-cat(
-  "\n最终fold assignment：\n"
+write.csv(
+  fold_assignment,
+  file = file.path(
+    output_dir,
+    "study_stratified_5fold_assignment.csv"
+  ),
+  row.names = FALSE
 )
 
-print(
-  head(
-    fold_assignment,
-    30
+
+# ============================================================
+# 19. Recursive Feature Elimination (RFE)
+# ============================================================
+
+rfe_control <- rfeControl(
+  
+  functions = rfFuncs,
+  
+  method = "cv",
+  
+  number = K,
+  
+  index = fold_train,
+  
+  verbose = FALSE,
+  
+  returnResamp = "final"
+)
+
+
+# ------------------------------------------------------------
+# Define candidate feature columns
+# ------------------------------------------------------------
+
+feature_columns <- setdiff(
+  
+  colnames(train_data),
+  
+  c(
+    "SampleID",
+    "Group",
+    "Project"
   )
 )
 
 
-############################################################
-### 保存fold assignment
-############################################################
+cat(
+  "\nNumber of candidate genera entering RFE:",
+  length(feature_columns),
+  "\n"
+)
+
+
+# ------------------------------------------------------------
+# Candidate feature sizes
+# ------------------------------------------------------------
+#
+# For reproducibility, the original analysis evaluates
+# all possible feature sizes.
+#
+# If the number of genera is large, users may consider
+# evaluating a smaller sequence, for example:
+#
+# rfe_sizes <- seq(
+#   5,
+#   length(feature_columns),
+#   by = 5
+# )
+#
+# ------------------------------------------------------------
+
+rfe_sizes <- seq_len(
+  length(feature_columns)
+)
+
+
+set.seed(seed_cv)
+
+
+rfe_result <- rfe(
+  
+  x = train_data[
+    ,
+    feature_columns,
+    drop = FALSE
+  ],
+  
+  y = train_data$Group,
+  
+  sizes = rfe_sizes,
+  
+  rfeControl = rfe_control
+)
+
+
+# ============================================================
+# 20. Save RFE results
+# ============================================================
+
+write.csv(
+  rfe_result$results,
+  file = file.path(
+    output_dir,
+    "random_forest_RFE_results.csv"
+  ),
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 21. Select optimal features
+# ============================================================
+
+best_features <- rfe_result$optVariables
+
+
+cat(
+  "\n============================================\n"
+)
+
+cat(
+  "Number of features selected by RFE:",
+  length(best_features),
+  "\n"
+)
+
+cat(
+  "============================================\n"
+)
+
+
+print(
+  best_features
+)
+
+
+# Save selected features
+write.csv(
+  data.frame(
+    genus = best_features
+  ),
+  file = file.path(
+    output_dir,
+    "random_forest_RFE_selected_genera.csv"
+  ),
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 22. Check selected features
+# ============================================================
+
+missing_train_features <- setdiff(
+  best_features,
+  colnames(train_data)
+)
+
+
+missing_test_features <- setdiff(
+  best_features,
+  colnames(test_data)
+)
+
+
+if (
+  length(missing_train_features) > 0
+) {
+  
+  stop(
+    "Some RFE-selected features are missing from the training dataset."
+  )
+}
+
+
+if (
+  length(missing_test_features) > 0
+) {
+  
+  stop(
+    paste0(
+      "Some RFE-selected features are missing from the independent validation dataset: ",
+      paste(
+        missing_test_features,
+        collapse = ", "
+      )
+    )
+  )
+}
+
+
+# ============================================================
+# 23. Train final Random Forest model
+# ============================================================
+
+train_control <- trainControl(
+  
+  method = "cv",
+  
+  number = K,
+  
+  index = fold_train,
+  
+  indexOut = fold_test,
+  
+  classProbs = TRUE,
+  
+  savePredictions = "final",
+  
+  summaryFunction = twoClassSummary,
+  
+  verboseIter = FALSE
+)
+
+
+set.seed(seed_model)
+
+
+rf_model <- train(
+  
+  x = train_data[
+    ,
+    best_features,
+    drop = FALSE
+  ],
+  
+  y = train_data$Group,
+  
+  method = "rf",
+  
+  trControl = train_control,
+  
+  tuneLength = 3,
+  
+  metric = "ROC",
+  
+  importance = TRUE
+)
+
+
+print(
+  rf_model
+)
+
+
+cat(
+  "\nBest Random Forest parameter:\n"
+)
+
+print(
+  rf_model$bestTune
+)
+
+
+# ============================================================
+# 24. Save Random Forest model
+# ============================================================
+
+saveRDS(
+  rf_model,
+  file = file.path(
+    output_dir,
+    "random_forest_model.rds"
+  )
+)
+
+
+# ============================================================
+# 25. Internal 5-fold CV performance
+# ============================================================
+
+cv_predictions <- rf_model$pred
+
+
+# ------------------------------------------------------------
+# Keep predictions corresponding to the optimal mtry
+# ------------------------------------------------------------
+
+if (
+  "mtry" %in% colnames(cv_predictions)
+) {
+  
+  cv_predictions_best <- cv_predictions[
+    cv_predictions$mtry ==
+      rf_model$bestTune$mtry,
+    ,
+    drop = FALSE
+  ]
+  
+} else {
+  
+  cv_predictions_best <- cv_predictions
+  
+}
+
+
+write.csv(
+  cv_predictions_best,
+  file = file.path(
+    output_dir,
+    "random_forest_internal_CV_predictions.csv"
+  ),
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 26. Internal CV ROC and AUC
+# ============================================================
+
+cv_roc <- roc(
+  
+  response = cv_predictions_best$obs,
+  
+  predictor = cv_predictions_best$ADLS,
+  
+  levels = c(
+    control_group,
+    case_group
+  ),
+  
+  direction = "<",
+  
+  quiet = TRUE
+)
+
+
+cv_auc <- auc(
+  cv_roc
+)
+
+
+cat(
+  "\nStudy-stratified 5-fold CV AUC:",
+  as.numeric(cv_auc),
+  "\n"
+)
+
+
+# ============================================================
+# 27. Determine classification threshold using Youden index
+# ============================================================
+
+best_threshold_info <- coords(
+  
+  cv_roc,
+  
+  x = "best",
+  
+  best.method = "youden",
+  
+  ret = c(
+    "threshold",
+    "sensitivity",
+    "specificity"
+  ),
+  
+  transpose = FALSE
+)
+
+
+cat(
+  "\n============================================\n"
+)
+
+cat(
+  "Threshold selected from training CV\n"
+)
+
+cat(
+  "============================================\n"
+)
+
+print(
+  best_threshold_info
+)
+
+
+best_threshold <- as.numeric(
+  best_threshold_info["threshold"]
+)
+
+
+cat(
+  "\nSelected threshold:",
+  best_threshold,
+  "\n"
+)
+
+
+# ============================================================
+# 28. Independent validation
+# ============================================================
+
+# ------------------------------------------------------------
+# Predict class probabilities
+# ------------------------------------------------------------
+
+test_probs <- predict(
+  
+  rf_model,
+  
+  newdata = test_data[
+    ,
+    best_features,
+    drop = FALSE
+  ],
+  
+  type = "prob"
+)
+
+
+# ------------------------------------------------------------
+# Classify validation samples using the threshold
+# determined exclusively from training CV
+# ------------------------------------------------------------
+
+test_predictions <- ifelse(
+  
+  test_probs[
+    ,
+    case_group
+  ] >= best_threshold,
+  
+  case_group,
+  
+  control_group
+)
+
+
+test_predictions <- factor(
+  
+  test_predictions,
+  
+  levels = group_levels
+)
+
+
+# ============================================================
+# 29. Confusion matrix
+# ============================================================
+
+conf_matrix <- confusionMatrix(
+  
+  data = test_predictions,
+  
+  reference = test_data$Group,
+  
+  positive = case_group
+)
+
+
+print(
+  conf_matrix
+)
+
+
+# Convert confusion matrix to data frame
+conf_matrix_df <- as.data.frame(
+  conf_matrix$table
+)
+
+
+colnames(conf_matrix_df) <- c(
+  "Prediction",
+  "Reference",
+  "Frequency"
+)
+
 
 write.csv(
   
-  fold_assignment,
+  conf_matrix_df,
   
-  file =
-    "all/revised_results/study_stratified_5fold_assignment_subgroup.csv",
+  file = file.path(
+    output_dir,
+    paste0(
+      validation_project,
+      "_independent_validation_confusion_matrix.csv"
+    )
+  ),
   
   row.names = FALSE
 )
 
 
-cat(
-  "\n分析完成。\n"
+# ============================================================
+# 30. Independent validation performance
+# ============================================================
+
+accuracy <- unname(
+  conf_matrix$overall[
+    "Accuracy"
+  ]
 )
 
+
+precision <- unname(
+  conf_matrix$byClass[
+    "Pos Pred Value"
+  ]
+)
+
+
+recall <- unname(
+  conf_matrix$byClass[
+    "Sensitivity"
+  ]
+)
+
+
+specificity <- unname(
+  conf_matrix$byClass[
+    "Specificity"
+  ]
+)
+
+
+balanced_accuracy <- unname(
+  conf_matrix$byClass[
+    "Balanced Accuracy"
+  ]
+)
+
+
+f1_score <- ifelse(
+  
+  is.na(precision) |
+    is.na(recall) |
+    precision + recall == 0,
+  
+  NA,
+  
+  2 * precision * recall /
+    (precision + recall)
+)
+
+
+# ============================================================
+# 31. Independent validation ROC and AUC
+# ============================================================
+
+roc_curve <- roc(
+  
+  response = test_data$Group,
+  
+  predictor = test_probs[
+    ,
+    case_group
+  ],
+  
+  levels = c(
+    control_group,
+    case_group
+  ),
+  
+  direction = "<",
+  
+  quiet = TRUE
+)
+
+
+auc_value <- auc(
+  roc_curve
+)
+
+
+auc_ci <- ci.auc(
+  roc_curve
+)
+
+
+# ============================================================
+# 32. Save independent validation performance
+# ============================================================
+
+performance_df <- data.frame(
+  
+  Validation_Cohort = validation_project,
+  
+  Threshold = best_threshold,
+  
+  Accuracy = accuracy,
+  
+  Sensitivity = recall,
+  
+  Specificity = specificity,
+  
+  Precision = precision,
+  
+  F1_Score = f1_score,
+  
+  Balanced_Accuracy = balanced_accuracy,
+  
+  AUC = as.numeric(
+    auc_value
+  ),
+  
+  AUC_CI_Lower = as.numeric(
+    auc_ci[1]
+  ),
+  
+  AUC_CI_Median = as.numeric(
+    auc_ci[2]
+  ),
+  
+  AUC_CI_Upper = as.numeric(
+    auc_ci[3]
+  ),
+  
+  stringsAsFactors = FALSE
+)
+
+
+write.csv(
+  
+  performance_df,
+  
+  file = file.path(
+    
+    output_dir,
+    
+    paste0(
+      validation_project,
+      "_independent_validation_performance.csv"
+    )
+  ),
+  
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 33. Save individual validation predictions
+# ============================================================
+
+validation_predictions <- data.frame(
+  
+  SampleID = rownames(test_data),
+  
+  Project = test_data$Project,
+  
+  Observed_Group = test_data$Group,
+  
+  Predicted_Group = test_predictions,
+  
+  Probability_ADLS = test_probs[
+    ,
+    case_group
+  ],
+  
+  Threshold = best_threshold,
+  
+  stringsAsFactors = FALSE
+)
+
+
+write.csv(
+  
+  validation_predictions,
+  
+  file = file.path(
+    
+    output_dir,
+    
+    paste0(
+      validation_project,
+      "_independent_validation_predictions.csv"
+    )
+  ),
+  
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 34. Save summary of analysis parameters
+# ============================================================
+
+analysis_parameters <- data.frame(
+  
+  Parameter = c(
+    
+    "Case group",
+    
+    "Control group",
+    
+    "Training cohorts",
+    
+    "Independent validation cohort",
+    
+    "Number of CV folds",
+    
+    "Candidate genera",
+    
+    "RFE-selected genera",
+    
+    "Random Forest mtry",
+    
+    "CV AUC",
+    
+    "Validation AUC",
+    
+    "Validation threshold"
+    
+  ),
+  
+  Value = c(
+    
+    case_group,
+    
+    control_group,
+    
+    paste(
+      train_projects,
+      collapse = ", "
+    ),
+    
+    validation_project,
+    
+    K,
+    
+    length(common_features),
+    
+    length(best_features),
+    
+    rf_model$bestTune$mtry,
+    
+    as.numeric(cv_auc),
+    
+    as.numeric(auc_value),
+    
+    best_threshold
+    
+  ),
+  
+  stringsAsFactors = FALSE
+)
+
+
+write.csv(
+  
+  analysis_parameters,
+  
+  file = file.path(
+    
+    output_dir,
+    
+    "random_forest_analysis_summary.csv"
+    
+  ),
+  
+  row.names = FALSE
+)
+
+
+# ============================================================
+# 35. Final message
+# ============================================================
+
+cat(
+  "\n============================================\n"
+)
+
+cat(
+  "Analysis completed successfully.\n"
+)
+
+cat(
+  "============================================\n"
+)
+
+cat(
+  "Training cohorts:",
+  paste(
+    train_projects,
+    collapse = ", "
+  ),
+  "\n"
+)
+
+cat(
+  "Independent validation cohort:",
+  validation_project,
+  "\n"
+)
+
+cat(
+  "Candidate genera:",
+  length(common_features),
+  "\n"
+)
+
+cat(
+  "RFE-selected genera:",
+  length(best_features),
+  "\n"
+)
+
+cat(
+  "Internal CV AUC:",
+  round(
+    as.numeric(cv_auc),
+    4
+  ),
+  "\n"
+)
+
+cat(
+  "Independent validation AUC:",
+  round(
+    as.numeric(auc_value),
+    4
+  ),
+  "\n"
+)
+
+cat(
+  "Results saved to:",
+  output_dir,
+  "\n"
+)
+
+cat(
+  "============================================\n"
+)
+```
