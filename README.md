@@ -46,8 +46,11 @@ Input:
 Output:
 The analysis generates differential abundance results and visualization files for three pairwise comparisons:ADLS vs HC; ADNLS vs HC; ADLS vs ADNLS
 For each comparison, two CSV files are generated in the results/ directory:
-*_all.csv # Meta-analysis results for all tested genera.
-*_FDR0.05.csv # Genera with a false discovery rate (FDR) < 0.05.
+ *_all.csv # Meta-analysis results for all tested genera.
+ *_FDR0.05.csv # Genera with a false discovery rate (FDR) < 0.05.
+two figures/ lm_meta/
+ barplot_FDR0.05_*.pdf
+ lollipop_FDR0.05_*.pdf
 ```
 
 ```R
