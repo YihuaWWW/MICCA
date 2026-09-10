@@ -80,6 +80,11 @@ Input:
  data/tax_L6.txt    # abundance of tax 
  data/meta_all.txt  # meta data of samples
 ```
+```R
+Output:
+ genus_ADLS_vs_HC_permutation_significant.csv    # Taxa significant based on the permutation test (FDR ≤ 0.05)
+ genus_ADLS_vs_HC_wilcoxon_significant.csv  # Taxa significant based on the Wilcoxon rank-sum test (FDR ≤ 0.05)
+```
 
 ```R
 Dependent Packages:
