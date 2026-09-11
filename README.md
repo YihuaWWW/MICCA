@@ -147,6 +147,20 @@ data/
            ├── group.csv   # meta data of samples
            └── tax_L6.txt  #abundance of tax
 ```
+```R
+Output:
+results/
+├── batch_correction/
+│   └── genus_MMUPHin_batch_corrected.csv
+│
+├── meta_analysis/
+│   └── lm_meta_ADLS_HC_FDR05.csv # Differential genera identified by meta-analysis
+│
+└── machine_learning/
+    ├── RFE_selected_features.csv # Genus features selected by RFE for classification
+    ├── *_independent_validation_confusion_matrix.csv # Confusion matrix for independent-cohort validation
+    └── *_independent_validation_performance.csv # Classification performance in the independent cohort
+```
 
 ```R
 Dependent Packages:
