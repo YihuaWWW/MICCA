@@ -196,6 +196,27 @@ Note that it is comparison of ADLS vs HC.
 Training cohorts: S2, S17, S19, S47, S71, S75
 Independent validation cohort: S74
 ```
+```R
+Input:
+data/
+├── all/
+│   ├── group.csv   # meta data of samples
+│   └── genus_NPC_ra_abd_adj.csv  # MMUPHin batch-adjusted genus-level abundance matrix.
+│
+└── */results/diff/   #Cohort-specific differential genus results from permutation test, Wilcoxon rank-sum test, and LEfSe.
+```
+```R
+Output:
+results/
+├── candidate_differential_genera.csv # Candidate differential genera identified across training cohorts.
+├── study_stratified_5fold_assignment.csv # Study-stratified 5-fold cross-validation assignments.
+├── random_forest_RFE_selected_genera.csv # Genera selected by RFE for Random Forest classification.
+├── independent_validation_confusion_matrix.csv # Confusion matrix for independent validation in *.
+└── independent_validation_performance.csv  #  Independent validation performance metrics, including Accuracy, Sensitivity, Specificity, F1-score, Balanced
+                                               Accuracy, and AUC.
+
+
+```
 
 ```R
 Dependent Packages:
