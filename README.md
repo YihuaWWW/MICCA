@@ -213,7 +213,7 @@ results/
 ├── random_forest_RFE_selected_genera.csv # Genera selected by RFE for Random Forest classification.
 ├── independent_validation_confusion_matrix.csv # Confusion matrix for independent validation in *.
 └── independent_validation_performance.csv  #  Independent validation performance metrics, including Accuracy, Sensitivity, Specificity, F1-score, Balanced
-                                               Accuracy, and AUC.
+                                            #  Accuracy, and AUC.
 
 
 ```
